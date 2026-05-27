@@ -104,6 +104,24 @@ make fuzz      # fuzz targets
 make lint      # go vet + staticcheck + golangci-lint if installed
 ```
 
+## Not in the public repo
+
+Kept local only (gitignored):
+
+- `CLAUDE.md` — internal instructions, full of external links.
+- `scripts/build_corpus/` — the corpus generator references external repos by
+  name; the generated corpus ships, the generator doesn't.
+
+## Sources
+
+Algorithm lineage and reference implementations:
+
+- [drupal ukstemmer](https://www.drupal.org/project/ukstemmer)
+- [Amice13/ukr_stemmer](https://github.com/Amice13/ukr_stemmer) · [ukrstemmer-node](https://github.com/Amice13/ukrstemmer-node)
+- [Desklop/Uk_Stemmer](https://github.com/Desklop/Uk_Stemmer)
+- [titarenko/ukrstemmer](https://github.com/titarenko/ukrstemmer)
+- corpus seeded from [brown-uk/corpus](https://github.com/brown-uk/corpus)
+
 ## License
 
 MIT — see [`LICENSE`](./LICENSE).

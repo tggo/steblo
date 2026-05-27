@@ -289,7 +289,7 @@ function stripFirst(rv,group){for(const s of group){if(ends(rv,s))return[rv.slic
 
 function stem(word,strict){
   const steps=[];
-  let w=word.toLowerCase().replace(/['’`ʼ′]/g,"");
+  let w=word.normalize("NFC").toLowerCase().replace(/['’`ʼ′]/g,"");
   let i=[...w].findIndex(isV);
   if(i===-1) return {prefix:w,stem:"",strip:"",steps:[{p:"no vowel"}]};
   if(i===w.length-1) return {prefix:w,stem:"",strip:"",steps:[{p:"empty RV"}]};

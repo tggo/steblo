@@ -85,7 +85,9 @@ func StemRunesWith(word []rune, opts Options) []rune {
 }
 
 // normalize applies the Options-gated input transforms (spec §2). It returns a
-// slice that may alias word when no transform fires.
+// slice that may alias word when no transform fires. Decomposed (NFD) Cyrillic
+// letters are always recomposed — see composeCyrillic — so input from sources
+// that store NFD (notably macOS filenames) stems identically to NFC input.
 func normalize(word []rune, opts Options) []rune {
 	needsCopy := false
 	for _, r := range word {
@@ -101,6 +103,10 @@ func normalize(word []rune, opts Options) []rune {
 			needsCopy = true
 			break
 		}
+		if isCyrillicCombiningMark(r) {
+			needsCopy = true
+			break
+		}
 	}
 	if !needsCopy {
 		return word
@@ -108,23 +114,70 @@ func normalize(word []rune, opts Options) []rune {
 
 	out := make([]rune, 0, len(word))
 	for _, r := range word {
+		// Recompose a decomposed Cyrillic letter: fold a combining mark into the
+		// preceding base letter rather than emitting it as a separate rune.
+		if isCyrillicCombiningMark(r) && len(out) > 0 {
+			if composed, ok := composeCyrillic(out[len(out)-1], r); ok {
+				out[len(out)-1] = applyYo(composed, opts)
+				continue
+			}
+		}
 		if opts.Lowercase {
 			r = unicode.ToLower(r)
 		}
-		if opts.NormalizeYo {
-			switch r {
-			case 'ё':
-				r = 'е'
-			case 'ъ':
-				r = 'ї'
-			}
-		}
+		r = applyYo(r, opts)
 		if opts.NormalizeApostr && isApostrophe(r) {
 			continue // unify-and-delete: the reference removes apostrophes
 		}
 		out = append(out, r)
 	}
 	return out
+}
+
+func applyYo(r rune, opts Options) rune {
+	if opts.NormalizeYo {
+		switch r {
+		case 'ё':
+			r = 'е'
+		case 'ъ':
+			r = 'ї'
+		}
+	}
+	return r
+}
+
+// isCyrillicCombiningMark reports whether r is one of the combining marks that
+// appear in decomposed Ukrainian/Russian Cyrillic: combining breve (й) and
+// combining diaeresis (ї, ё).
+func isCyrillicCombiningMark(r rune) bool {
+	return r == '̆' || r == '̈'
+}
+
+// composeCyrillic folds base+mark into a precomposed Cyrillic letter. base is
+// expected lowercase (normalize lowercases before composing), but the uppercase
+// forms are handled too for the Lowercase=false path.
+func composeCyrillic(base, mark rune) (rune, bool) {
+	switch mark {
+	case '̆': // combining breve
+		switch base {
+		case 'и':
+			return 'й', true
+		case 'И':
+			return 'Й', true
+		}
+	case '̈': // combining diaeresis
+		switch base {
+		case 'і':
+			return 'ї', true
+		case 'І':
+			return 'Ї', true
+		case 'е':
+			return 'ё', true
+		case 'Е':
+			return 'Ё', true
+		}
+	}
+	return 0, false
 }
 
 // isApostrophe matches the apostrophe variants unified by NormalizeApostr.

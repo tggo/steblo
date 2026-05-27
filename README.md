@@ -55,6 +55,10 @@ stemctl --bench < bench/words.txt             # 10000 words, 2.2ms total, 219 ns
 | `NormalizeApostr` | `true` | Unify and delete apostrophe variants before stemming (`об'єднання → обєднан`). |
 | `NormalizeYo` | `false` | Map `ё→е`, `ъ→ї` for mixed-Cyrillic corpora. |
 
+Decomposed (NFD) Cyrillic — combining breve (`й`) and diaeresis (`ї`, `ё`) — is
+always recomposed, so input from NFD sources (e.g. macOS filenames) stems
+identically to NFC. This is unconditional and never alters NFC text.
+
 API surface: `Stem`, `StemWith`, `StemRunes`, `StemRunesWith`, `Options`,
 `DefaultOptions`. `StemRunes*` is the allocation-conscious form; its result may
 alias the input — clone before mutating.

@@ -84,6 +84,14 @@ Map this onto `Options` (see `steblo.go` API), defaults chosen to match the
 | apostrophe unify/strip | on | `NormalizeApostr` (default true) |
 | `ё → е` | **off** | `NormalizeYo` (default false) |
 | `ъ → ї` | folded into `NormalizeYo` | — |
+| NFD → NFC recompose | **always** | — (correctness, not optional) |
+
+steblo additionally recomposes decomposed (NFD) Cyrillic letters that none of
+the references handle: combining breve (`и` + ◌̆ → `й`) and combining diaeresis
+(`і` + ◌̈ → `ї`, `е` + ◌̈ → `ё`). This is unconditional — decomposed input (e.g.
+text read from macOS filenames, which are NFD) otherwise fails every suffix and
+vowel match and would silently not stem. It only affects decomposed input and
+never alters NFC text.
 
 Rationale: apostrophe handling is needed for correct Ukrainian RV computation
 (`п'ять`, `об'єкт`). `ё`/`ъ` are Russian letters; defaulting their rewrite off

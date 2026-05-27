@@ -78,17 +78,47 @@ numbers in [`docs/bench.md`](./docs/bench.md). Reproduce with `make bench`.
 The [`bleveuk`](./bleveuk) sub-package registers a Bleve token filter
 (`uk_stem`), a Ukrainian stopword filter (`stop_uk`), and an analyzer (`uk`)
 composed of `unicode → lowercase → stop_uk → uk_stem`. Import it for its
-side effects and reference the analyzer by name:
+side effects, then reference the analyzer by name in your field mapping:
 
 ```go
-import _ "github.com/tggo/steblo/bleveuk"
-// ... then set a text field mapping's Analyzer to "uk"
+package main
+
+import (
+	"fmt"
+
+	"github.com/blevesearch/bleve/v2"
+	_ "github.com/tggo/steblo/bleveuk" // registers the "uk" analyzer
+)
+
+func main() {
+	// Map a text field to the Ukrainian analyzer.
+	fm := bleve.NewTextFieldMapping()
+	fm.Analyzer = "uk"
+	dm := bleve.NewDocumentMapping()
+	dm.AddFieldMappingsAt("text", fm)
+	im := bleve.NewIndexMapping()
+	im.DefaultMapping = dm
+
+	idx, _ := bleve.NewMemOnly(im)
+	idx.Index("d1", map[string]string{"text": "державні випробування обладнання"})
+	idx.Index("d2", map[string]string{"text": "погашення кредиту достроково"})
+
+	// "випробувань" and the indexed "випробування" both stem to "випробуван",
+	// so the query matches d1 even though the surface forms differ.
+	q := bleve.NewMatchQuery("випробувань")
+	q.SetField("text")
+	res, _ := idx.Search(bleve.NewSearchRequest(q))
+	fmt.Println(res.Hits[0].ID) // d1
+}
 ```
 
 `bleveuk` is a **separate Go module** (`github.com/tggo/steblo/bleveuk`) so that
 Bleve's dependency tree never touches the core: `go get github.com/tggo/steblo`
 pulls in nothing. Install the integration only if you want it:
-`go get github.com/tggo/steblo/bleveuk`.
+
+```bash
+go get github.com/tggo/steblo/bleveuk
+```
 
 ## Caveats
 

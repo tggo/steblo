@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>steblo — Ukrainian stemmer in pure Go</title>
+<meta name="description" content="Zero-dependency, rule-based Ukrainian stemmer in pure Go. Stateless, concurrency-safe, allocation-free hot path.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#efe9da; --paper-2:#e6dec9; --ink:#1c2b22; --ink-soft:#425446;
+  --leaf:#3a6b4a; --leaf-deep:#244a32; --ochre:#b9551f;
+  --gold:#c08a2d; --line:#c9bfa6; --shadow:rgba(28,43,34,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"Newsreader",Georgia,serif; font-size:19px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(circle at 18% 12%, rgba(58,107,74,.07), transparent 42%),
+    radial-gradient(circle at 88% 78%, rgba(185,85,31,.06), transparent 46%);
+  position:relative; overflow-x:hidden;
+}
+/* paper grain */
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+  mix-blend-mode:multiply;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px;position:relative;z-index:2}
+mono,code,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* ---- top rule / nav ---- */
+.topbar{display:flex;justify-content:space-between;align-items:center;
+  padding:22px 0 0;font-family:"IBM Plex Mono",monospace;font-size:12.5px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+.topbar a{color:var(--ink-soft);text-decoration:none;border-bottom:1px solid transparent;transition:.2s}
+.topbar a:hover{color:var(--ochre);border-color:var(--ochre)}
+.topbar nav{display:flex;gap:22px}
+
+/* ---- hero ---- */
+.hero{padding:62px 0 30px;position:relative}
+.specimen-tag{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--leaf);display:flex;gap:14px;align-items:center;margin-bottom:18px}
+.specimen-tag::before{content:"";width:46px;height:1px;background:var(--leaf)}
+h1.word{font-family:"Fraunces",serif;font-weight:600;font-size:clamp(76px,17vw,200px);
+  line-height:.84;letter-spacing:-.03em;color:var(--ink);position:relative;font-optical-sizing:auto}
+h1.word em{font-style:italic;font-weight:340;color:var(--leaf-deep)}
+.latin{font-family:"Fraunces",serif;font-style:italic;font-weight:340;
+  font-size:clamp(17px,2.4vw,23px);color:var(--ink-soft);margin:18px 0 0;max-width:30ch}
+.latin b{font-style:normal;font-weight:600;color:var(--ochre)}
+.lede{margin-top:26px;max-width:46ch;font-size:21px;color:var(--ink)}
+
+/* botanical stem svg */
+.stem-art{position:absolute;right:-10px;top:30px;width:min(34vw,330px);opacity:.9;z-index:0}
+@media(max-width:760px){.stem-art{display:none}}
+
+/* ---- demo / specimen card ---- */
+.demo{margin:30px 0 70px;position:relative}
+.card{background:var(--paper-2);border:1px solid var(--line);border-radius:3px;
+  box-shadow:0 1px 0 #fff6 inset, 0 22px 48px -28px var(--shadow);position:relative}
+.card::after{content:"Гербарний зразок № UK·001";position:absolute;top:-11px;left:26px;
+  background:var(--ochre);color:var(--paper);font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;padding:4px 12px;border-radius:2px}
+.card-inner{padding:40px 34px 30px;display:grid;grid-template-columns:1fr;gap:22px}
+.field-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.field-row label{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink-soft)}
+#word{flex:1;min-width:240px;font-family:"IBM Plex Mono",monospace;font-size:30px;font-weight:500;
+  color:var(--ink);background:transparent;border:none;border-bottom:2px solid var(--leaf);
+  padding:8px 2px;outline:none;transition:border-color .2s}
+#word:focus{border-color:var(--ochre)}
+.toggle{display:inline-flex;align-items:center;gap:9px;cursor:pointer;user-select:none;
+  font-family:"IBM Plex Mono",monospace;font-size:12.5px;letter-spacing:.08em;color:var(--ink-soft)}
+.toggle input{appearance:none;width:38px;height:20px;background:var(--line);border-radius:20px;position:relative;cursor:pointer;transition:.2s;flex:none}
+.toggle input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;background:var(--paper);border-radius:50%;transition:.2s}
+.toggle input:checked{background:var(--leaf)}
+.toggle input:checked::after{transform:translateX(18px)}
+
+/* result render */
+.result{font-family:"IBM Plex Mono",monospace;font-size:clamp(34px,7vw,62px);font-weight:500;
+  line-height:1.15;letter-spacing:-.01em;word-break:break-all;min-height:1.2em}
+.result .prefix{color:var(--gold)}
+.result .stem{color:var(--ink)}
+.result .strip{color:var(--ochre);opacity:.45;text-decoration:line-through;text-decoration-thickness:2px;
+  display:inline-block;animation:peel .5s cubic-bezier(.4,0,.2,1)}
+@keyframes peel{from{opacity:0;transform:translateY(-6px) rotate(-2deg)}to{opacity:.45;transform:none}}
+.arrow{font-family:"IBM Plex Mono",monospace;color:var(--leaf);font-size:20px;margin:0 4px}
+.trace{display:flex;flex-wrap:wrap;gap:9px;min-height:30px}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--leaf-deep);background:rgba(58,107,74,.13);border:1px solid rgba(58,107,74,.3);
+  padding:5px 11px;border-radius:2px;animation:fade .4s both}
+.chip.none{color:var(--ink-soft);background:transparent;border-color:var(--line)}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+.examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.ex{font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--leaf-deep);background:transparent;
+  border:1px dashed var(--line);padding:6px 12px;border-radius:2px;cursor:pointer;transition:.18s}
+.ex:hover{border-color:var(--ochre);color:var(--ochre);border-style:solid}
+
+/* ---- section heads ---- */
+section{padding:46px 0;border-top:1px solid var(--line)}
+.kicker{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.26em;
+  text-transform:uppercase;color:var(--ochre);margin-bottom:14px}
+h2{font-family:"Fraunces",serif;font-weight:500;font-size:clamp(30px,5vw,46px);
+  letter-spacing:-.02em;line-height:1.04;margin-bottom:8px;color:var(--ink)}
+h2 em{font-style:italic;color:var(--leaf-deep)}
+
+/* feature grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);margin-top:30px}
+.cell{background:var(--paper);padding:26px 24px}
+.cell .n{font-family:"Fraunces",serif;font-style:italic;font-size:16px;color:var(--ochre);margin-bottom:10px}
+.cell h3{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;margin-bottom:8px;color:var(--ink)}
+.cell p{font-size:16.5px;color:var(--ink-soft);line-height:1.5}
+
+/* code blocks */
+pre{background:var(--ink);color:#e7e0cd;font-family:"IBM Plex Mono",monospace;font-size:14.5px;
+  line-height:1.7;padding:22px 24px;border-radius:3px;overflow-x:auto;margin-top:22px;
+  box-shadow:0 18px 40px -26px var(--shadow)}
+pre .c{color:#7f9c84}.k{color:#d9a05b}.s{color:#9ec5a8}.f{color:#e7e0cd}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:720px){.two{grid-template-columns:1fr}}
+
+/* perf */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:26px;margin-top:30px}
+.metric .v{font-family:"Fraunces",serif;font-weight:500;font-size:clamp(40px,6vw,60px);
+  letter-spacing:-.03em;color:var(--leaf-deep);line-height:1}
+.metric .v small{font-size:.4em;color:var(--ink-soft);font-family:"IBM Plex Mono",monospace;letter-spacing:0}
+.metric .l{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-soft);margin-top:8px}
+
+footer{padding:50px 0 70px;border-top:2px solid var(--ink)}
+.foot-grid{display:flex;justify-content:space-between;flex-wrap:wrap;gap:24px;align-items:flex-end}
+footer a{color:var(--leaf-deep);text-decoration:none;border-bottom:1px solid var(--line);transition:.2s}
+footer a:hover{color:var(--ochre);border-color:var(--ochre)}
+.src{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-soft);line-height:2}
+.btn{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:14px;letter-spacing:.08em;
+  text-transform:uppercase;background:var(--ink);color:var(--paper);padding:13px 22px;border-radius:3px;
+  text-decoration:none;border:none;transition:.2s}
+.btn:hover{background:var(--leaf-deep);color:var(--paper)}
+.reveal{opacity:0;transform:translateY(16px);animation:rise .8s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <span>стебло · uk stemmer</span>
+    <nav>
+      <a href="#try">try</a><a href="#why">why</a><a href="#use">use</a>
+      <a href="https://github.com/tggo/steblo">github ↗</a>
+    </nav>
+  </div>
+
+  <header class="hero">
+    <svg class="stem-art" viewBox="0 0 200 360" fill="none" aria-hidden="true">
+      <path d="M100 360 C100 240 96 170 100 90" stroke="#244a32" stroke-width="3"/>
+      <path d="M100 250 C70 240 52 214 50 184 C84 188 102 214 100 250Z" fill="#3a6b4a" opacity=".9"/>
+      <path d="M100 200 C132 192 152 166 154 134 C118 138 100 166 100 200Z" fill="#3a6b4a" opacity=".75"/>
+      <path d="M100 150 C72 144 56 120 56 92 C88 96 102 120 100 150Z" fill="#3a6b4a" opacity=".6"/>
+      <circle cx="100" cy="74" r="16" fill="#b9551f"/>
+      <circle cx="100" cy="74" r="7" fill="#c08a2d"/>
+    </svg>
+    <div class="specimen-tag reveal" style="animation-delay:.05s">Ukrainian · rule-based · pure Go</div>
+    <h1 class="word reveal" style="animation-delay:.12s">steb<em>lo</em></h1>
+    <p class="latin reveal" style="animation-delay:.22s"><b>стебло</b> — “stem / stalk”. A Porter-style stemmer that strips a Ukrainian word down to its botanical root.</p>
+    <p class="lede reveal" style="animation-delay:.32s">Zero runtime dependencies. Stateless and safe under any number of goroutines. An allocation-free hot path. ~4.9M words/sec.</p>
+  </header>
+
+  <!-- LIVE DEMO -->
+  <div class="demo" id="try">
+    <div class="card reveal" style="animation-delay:.4s">
+      <div class="card-inner">
+        <div class="field-row">
+          <label for="word">specimen</label>
+          <input id="word" value="випробування" spellcheck="false" autocomplete="off">
+          <label class="toggle"><input type="checkbox" id="strict"> strict</label>
+        </div>
+        <div class="result" id="result"></div>
+        <div class="trace" id="trace"></div>
+        <div class="examples" id="examples"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WHY -->
+  <section id="why">
+    <div class="kicker">field notes</div>
+    <h2>Small, sharp, and <em>honest</em>.</h2>
+    <div class="grid">
+      <div class="cell"><div class="n">i.</div><h3>Zero deps</h3><p>No cgo, no models, no regex in the hot path. One package, stdlib only.</p></div>
+      <div class="cell"><div class="n">ii.</div><h3>Concurrency-safe</h3><p>Stateless, no package-level mutable state. Call <span class="mono">Stem</span> from any number of goroutines.</p></div>
+      <div class="cell"><div class="n">iii.</div><h3>Alloc-free</h3><p>The stem is a left-anchored slice of the input — <span class="mono">StemRunes</span> allocates nothing.</p></div>
+      <div class="cell"><div class="n">iv.</div><h3>Spec-driven</h3><p>A canonical algorithm spec is the source of truth; every cross-impl divergence is resolved on the record.</p></div>
+      <div class="cell"><div class="n">v.</div><h3>Differential-tested</h3><p>A 12k-word corpus, 92.5% cross-implementation consensus, gates CI.</p></div>
+      <div class="cell"><div class="n">vi.</div><h3>Bleve-ready</h3><p>An optional, decoupled <span class="mono">uk</span> analyzer + <span class="mono">uk_stem</span> token filter.</p></div>
+    </div>
+  </section>
+
+  <!-- USE -->
+  <section id="use">
+    <div class="kicker">cultivation</div>
+    <h2>Plant it in three lines.</h2>
+    <div class="two">
+      <div>
+        <pre><span class="c">// go get github.com/tggo/steblo</span>
+<span class="k">package</span> main
+
+<span class="k">import</span> (
+  <span class="s">"fmt"</span>
+  <span class="s">"github.com/tggo/steblo"</span>
+)
+
+<span class="k">func</span> main() {
+  fmt.Println(steblo.<span class="f">Stem</span>(<span class="s">"випробування"</span>))
+  <span class="c">// → випробуван</span>
+}</pre>
+      </div>
+      <div>
+        <pre><span class="c"># CLI: stemctl</span>
+<span class="f">echo</span> <span class="s">"слова українські красиві"</span> | stemctl
+<span class="c"># → слов українськ красив</span>
+
+stemctl --strict --json &lt; words.txt
+<span class="c"># {"слова":"слов", ...}</span>
+
+stemctl --bench &lt; bench/words.txt
+<span class="c"># 10000 words, 2.2ms, 219 ns/word</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERF -->
+  <section>
+    <div class="kicker">growth rate</div>
+    <h2>Measured, not promised.</h2>
+    <div class="metrics">
+      <div class="metric"><div class="v">127<small>ns</small></div><div class="l">per word · runes</div></div>
+      <div class="metric"><div class="v">0<small>alloc</small></div><div class="l">StemRunes hot path</div></div>
+      <div class="metric"><div class="v">4.9<small>M/s</small></div><div class="l">words / second</div></div>
+      <div class="metric"><div class="v">91<small>%</small></div><div class="l">test coverage</div></div>
+    </div>
+    <p class="latin" style="margin-top:24px">Apple M4 Max · Go 1.25 · over a 10k-word workload. Numbers, methodology, and an honest accounting live in the repo’s bench report.</p>
+  </section>
+
+  <footer>
+    <div class="foot-grid">
+      <div>
+        <h2 style="font-size:34px">steblo</h2>
+        <p class="latin">MIT licensed · pure Go · 2026</p>
+        <p style="margin-top:18px"><a class="btn" href="https://github.com/tggo/steblo">view on github ↗</a></p>
+      </div>
+      <div class="src">
+        <strong style="color:var(--ink)">sources</strong><br>
+        <a href="https://www.drupal.org/project/ukstemmer">drupal ukstemmer</a><br>
+        <a href="https://github.com/Amice13/ukr_stemmer">Amice13/ukr_stemmer</a><br>
+        <a href="https://github.com/Desklop/Uk_Stemmer">Desklop/Uk_Stemmer</a><br>
+        <a href="https://github.com/titarenko/ukrstemmer">titarenko/ukrstemmer</a><br>
+        <a href="https://github.com/brown-uk/corpus">brown-uk/corpus</a>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+/* Faithful in-browser port of steblo (docs/algorithm.md). Cyrillic is BMP,
+   so [...str] gives one char per code point. */
+const V = new Set([..."аеиоуюяіїє"]);
+const isV = c => V.has(c);
+const T = {
+  pgU:["ившись","ывшись","ивши","ывши","ив","ыв"],
+  pgA:["вшись","вши","в"],
+  refl:["ся","сь","си"],
+  adj:["ими","ова","ове","йми","іми","ого","ому","ій","ий","ів","їй","єє","еє","ім","ем","им","их","іх","ою","ої","а","е","є","я","у","ю"],
+  part:["ого","ому","йми","ий","им","ім","ій","ою","их","а","у","і"],
+  verb:["ать","ять","али","учи","ячи","вши","ати","яти","сь","ся","ив","ав","ши","ме","у","ю","е","є"],
+  noun:["ями","ами","иям","ием","иях","ові","еві","ев","ов","еи","ей","ой","ий","ям","ем","ам","ом","ах","ях","ию","ью","ия","ья","ею","єю","ою","єм","ів","їв","а","е","и","й","о","у","ы","ь","ю","я","і","ї","є"],
+  alt:["ждж","ст","дж","ьц","сі","ці","зі","он","ін","ів","ев","ок","шк"],
+  altS:new Set([..."гджзкстхцчш"])
+};
+const ends=(a,s)=>a.endsWith(s);
+function stripFirst(rv,group){for(const s of group){if(ends(rv,s))return[rv.slice(0,rv.length-s.length),true,s];}return[rv,false,null];}
+
+function stem(word,strict){
+  const steps=[];
+  let w=word.toLowerCase().replace(/['’`ʼ′]/g,"");
+  let i=[...w].findIndex(isV);
+  if(i===-1) return {prefix:w,stem:"",strip:"",steps:[{p:"no vowel"}]};
+  if(i===w.length-1) return {prefix:w,stem:"",strip:"",steps:[{p:"empty RV"}]};
+  const prefix=w.slice(0,i+1); let rv=w.slice(i+1); const rv0=rv;
+  // Step 1
+  let g=stripFirst(rv,T.pgU); let pg=g[1];
+  if(!pg){ for(const s of T.pgA){ if(ends(rv,s)){const b=rv.length-s.length; if(b>0&&(rv[b-1]==='а'||rv[b-1]==='я')){rv=rv.slice(0,b);pg=true;g=[rv,true,s];break;}}}}
+  if(pg){ rv=g[0]; steps.push({p:"perfective gerund",s:g[2]}); }
+  else{
+    let r=stripFirst(rv,T.refl); if(r[1]){rv=r[0];steps.push({p:"reflexive",s:r[2]});}
+    let a=stripFirst(rv,T.adj);
+    if(a[1]){ rv=a[0]; steps.push({p:"adjective",s:a[2]}); let p=stripFirst(rv,T.part); if(p[1]){rv=p[0];steps.push({p:"participle",s:p[2]});}}
+    else{ let v=stripFirst(rv,T.verb); if(v[1]){rv=v[0];steps.push({p:"verb",s:v[2]});}
+          else{ let n=stripFirst(rv,T.noun); if(n[1]){rv=n[0];steps.push({p:"noun",s:n[2]});}}}
+  }
+  // Step 2
+  if(rv.endsWith("и")){rv=rv.slice(0,-1);steps.push({p:"step 2 · и",s:"и"});}
+  // Step 3 derivational
+  if((rv.endsWith("ость")||rv.endsWith("ост"))&&hasShape(rv)){ if(rv.endsWith("ость")){rv=rv.slice(0,-4);steps.push({p:"derivational",s:"ость"});}}
+  // Step 4 Snowball
+  if(rv.endsWith("нн")){rv=rv.slice(0,-1);steps.push({p:"step 4 · нн→н",s:"н"});}
+  else if(rv.endsWith("ейше")){rv=rv.slice(0,-4);if(rv.endsWith("нн"))rv=rv.slice(0,-1);steps.push({p:"step 4 · superlative",s:"ейше"});}
+  else if(rv.endsWith("ейш")){rv=rv.slice(0,-3);if(rv.endsWith("нн"))rv=rv.slice(0,-1);steps.push({p:"step 4 · superlative",s:"ейш"});}
+  else if(rv.endsWith("ь")){rv=rv.slice(0,-1);steps.push({p:"step 4 · ь",s:"ь"});}
+  if(strict){ let al=stripFirst(rv,T.alt); if(al[1]){rv=al[0];steps.push({p:"strict alternation",s:al[2]});}
+    else if(rv.length&&T.altS.has(rv[rv.length-1])){steps.push({p:"strict alternation",s:rv[rv.length-1]});rv=rv.slice(0,-1);}}
+  return {prefix,stem:rv,strip:rv0.slice(rv.length),steps};
+}
+function hasShape(rv){const a=[...rv];for(let i=0;i<a.length;i++){let j=i;if(isV(a[j]))continue;j++;let n=0;while(j<a.length&&isV(a[j])){j++;n++}if(!n)continue;n=0;while(j<a.length&&!isV(a[j])){j++;n++}if(!n)continue;if(j<a.length&&isV(a[j]))return true;}return false;}
+
+const wEl=document.getElementById("word"),sEl=document.getElementById("strict"),
+      rEl=document.getElementById("result"),tEl=document.getElementById("trace");
+function esc(x){return x.replace(/&/g,"&amp;").replace(/</g,"&lt;")}
+function render(){
+  const r=stem(wEl.value.trim(),sEl.checked);
+  if(!r.prefix){rEl.innerHTML='<span class="strip">—</span>';tEl.innerHTML='';return;}
+  rEl.innerHTML=`<span class="prefix">${esc(r.prefix)}</span><span class="stem">${esc(r.stem)}</span>`+
+    (r.strip?`<span class="strip">${esc(r.strip)}</span>`:"");
+  const chips=r.steps.filter(s=>s.s!==undefined).map(s=>`<span class="chip">${esc(s.p)}${s.s?` · ${esc(s.s)}`:""}</span>`);
+  tEl.innerHTML=chips.length?chips.join(""):'<span class="chip none">no suffix stripped</span>';
+}
+wEl.addEventListener("input",render); sEl.addEventListener("change",render);
+const exs=["випробування","Чепинога","найдобрейший","рефлексивного","зробивши","незалежності","українські","погашення"];
+const exEl=document.getElementById("examples");
+exEl.innerHTML=exs.map(e=>`<button class="ex">${e}</button>`).join("");
+exEl.querySelectorAll(".ex").forEach(b=>b.addEventListener("click",()=>{wEl.value=b.textContent;render();wEl.focus();}));
+render();
+</script>
+</body>
+</html>

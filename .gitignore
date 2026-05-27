@@ -1,0 +1,9 @@
+/references/
+*.test
+*.out
+/dist/
+cover.out
+
+# Internal / maintainer-only (not part of the public release)
+/CLAUDE.md
+/scripts/build_corpus/

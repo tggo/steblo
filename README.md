@@ -1,5 +1,8 @@
 # steblo
 
+[![CI](https://github.com/tggo/steblo/actions/workflows/ci.yml/badge.svg)](https://github.com/tggo/steblo/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/tggo/steblo.svg)](https://pkg.go.dev/github.com/tggo/steblo)
+
 Zero-dependency, rule-based stemmer for the Ukrainian language in pure Go.
 
 - **Zero runtime dependencies** — no cgo, no models, no regex in the hot path.

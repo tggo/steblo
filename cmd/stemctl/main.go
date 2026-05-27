@@ -6,7 +6,6 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -42,24 +41,29 @@ func main() {
 	case *bench:
 		runBench(words, opts)
 	case *jsonOut:
-		runJSON(words, opts)
+		emit(renderJSON(words, opts))
 	default:
 		out := make([]string, len(words))
 		for i, w := range words {
 			out[i] = steblo.StemWith(w, opts)
 		}
-		w := bufio.NewWriter(os.Stdout)
-		defer w.Flush()
-		fmt.Fprintln(w, strings.Join(out, " "))
+		emit(strings.Join(out, " ") + "\n")
 	}
 }
 
-// runJSON prints an ordered JSON object (first-occurrence order, deduplicated).
-func runJSON(words []string, opts steblo.Options) {
-	w := bufio.NewWriter(os.Stdout)
-	defer w.Flush()
+// emit writes s to stdout and reports any write error on stderr.
+func emit(s string) {
+	if _, err := os.Stdout.WriteString(s); err != nil {
+		fmt.Fprintln(os.Stderr, "stemctl: write:", err)
+		os.Exit(1)
+	}
+}
+
+// renderJSON builds an ordered JSON object (first-occurrence order, deduplicated).
+func renderJSON(words []string, opts steblo.Options) string {
+	var b strings.Builder
 	seen := make(map[string]bool, len(words))
-	w.WriteByte('{')
+	b.WriteByte('{')
 	first := true
 	for _, word := range words {
 		if seen[word] {
@@ -67,13 +71,16 @@ func runJSON(words []string, opts steblo.Options) {
 		}
 		seen[word] = true
 		if !first {
-			w.WriteByte(',')
+			b.WriteByte(',')
 		}
 		first = false
-		fmt.Fprintf(w, "%s:%s", jsonString(word), jsonString(steblo.StemWith(word, opts)))
+		b.WriteString(jsonString(word))
+		b.WriteByte(':')
+		b.WriteString(jsonString(steblo.StemWith(word, opts)))
 	}
-	w.WriteByte('}')
-	w.WriteByte('\n')
+	b.WriteByte('}')
+	b.WriteByte('\n')
+	return b.String()
 }
 
 // jsonString escapes a string as a JSON string literal (UTF-8 passed through).

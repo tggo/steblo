@@ -12,7 +12,7 @@ func loadBenchWords(b *testing.B) []string {
 	if err != nil {
 		b.Fatalf("open bench words: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	var words []string
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {

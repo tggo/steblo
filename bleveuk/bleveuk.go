@@ -96,8 +96,8 @@ func analyzerConstructor(_ map[string]interface{}, cache *registry.Cache) (analy
 }
 
 func init() {
-	registry.RegisterTokenMap(StopMapName, stopTokenMap)
-	registry.RegisterTokenFilter(StopName, stopFilterConstructor)
-	registry.RegisterTokenFilter(StemmerName, stemmerConstructor)
-	registry.RegisterAnalyzer(AnalyzerName, analyzerConstructor)
+	_ = registry.RegisterTokenMap(StopMapName, stopTokenMap)
+	_ = registry.RegisterTokenFilter(StopName, stopFilterConstructor)
+	_ = registry.RegisterTokenFilter(StemmerName, stemmerConstructor)
+	_ = registry.RegisterAnalyzer(AnalyzerName, analyzerConstructor)
 }

@@ -23,7 +23,7 @@ func loadCorpus(t *testing.T) []corpusRow {
 	if err != nil {
 		t.Fatalf("open corpus: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var rows []corpusRow
 	var cur *corpusRow
@@ -62,7 +62,7 @@ func loadCorpus(t *testing.T) []corpusRow {
 }
 
 // scalar extracts a value for `key` from a line, unquoting a single-quoted YAML
-// scalar ('' -> '). Returns ok=false if the trimmed line does not start with key.
+// scalar (” -> '). Returns ok=false if the trimmed line does not start with key.
 func scalar(line, key string) (string, bool) {
 	t := strings.TrimSpace(line)
 	if !strings.HasPrefix(t, key) {

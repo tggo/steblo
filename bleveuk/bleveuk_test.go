@@ -62,7 +62,7 @@ func TestIndexAndSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new index: %v", err)
 	}
-	defer idx.Close()
+	defer func() { _ = idx.Close() }()
 
 	docs := map[string]string{
 		"d1": "державні випробування нового обладнання",

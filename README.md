@@ -85,7 +85,10 @@ import _ "github.com/tggo/steblo/bleveuk"
 // ... then set a text field mapping's Analyzer to "uk"
 ```
 
-The core `steblo` package has no Bleve dependency.
+`bleveuk` is a **separate Go module** (`github.com/tggo/steblo/bleveuk`) so that
+Bleve's dependency tree never touches the core: `go get github.com/tggo/steblo`
+pulls in nothing. Install the integration only if you want it:
+`go get github.com/tggo/steblo/bleveuk`.
 
 ## Caveats
 

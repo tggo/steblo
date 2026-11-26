@@ -56,6 +56,6 @@ jobs:
       # Lint the core module only; bleveuk is thin glue and is covered by
       # `go vet` in its own job.
       - name: lint core
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.15.0

@@ -57,7 +57,7 @@ func StemRunes(word []rune) []rune {
 func StemRunesWith(word []rune, opts Options) []rune {
 	w := normalize(word, opts)
 	if len(w) == 0 {
-		return word
+		return w // empty after normalisation (e.g. only apostrophes)
 	}
 
 	// RV split (spec §1): find the first vowel; the prefix up to and including

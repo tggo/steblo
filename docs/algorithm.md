@@ -97,7 +97,7 @@ Rationale: apostrophe handling is needed for correct Ukrainian RV computation
 (`п'ять`, `об'єкт`). `ё`/`ъ` are Russian letters; defaulting their rewrite off
 keeps clean Ukrainian text untouched, but the option exists for mixed corpora to
 reproduce the reference exactly. Apostrophe handling: the reference *deletes* the
-apostrophe; steblo with `NormalizeApostr` first unifies `ʼ ' \` ′` → U+02BC then
+apostrophe; steblo with `NormalizeApostr` first unifies `ʼ ' \` ′ ‘ ’` (U+02BC, U+0027, U+0060, U+2032, U+2018, U+2019) → U+02BC then
 deletes it before RV computation, matching reference behaviour on the resulting
 letters.
 

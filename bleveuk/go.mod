@@ -1,6 +1,6 @@
 module github.com/tggo/steblo/bleveuk
 
-go 1.25.0
+go 1.26
 
 replace github.com/tggo/steblo => ../
 

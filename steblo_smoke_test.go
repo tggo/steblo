@@ -73,3 +73,11 @@ func TestNoVowel(t *testing.T) {
 		t.Errorf("no-vowel word changed: %q", got)
 	}
 }
+
+func TestApostropheOnlyIsEmpty(t *testing.T) {
+	for _, w := range []string{"'", "’’", "ʼ", "‘`"} {
+		if got := Stem(w); got != "" {
+			t.Errorf("Stem(%q) = %q, want empty", w, got)
+		}
+	}
+}

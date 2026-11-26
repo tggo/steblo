@@ -6,7 +6,7 @@ replace github.com/tggo/steblo => ../
 
 require (
 	github.com/blevesearch/bleve/v2 v2.6.0
-	github.com/tggo/steblo v0.1.0
+	github.com/tggo/steblo v0.2.0
 )
 
 require (
